@@ -1,0 +1,8 @@
+runtime/
+downloads/
+app/settings.json
+__pycache__/
+*.pyc
+*.part
+*.zst
+*.ts

@@ -1,0 +1,2 @@
+pycapnp==2.2.4
+zstandard==0.25.0

@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>로그 다운로더</title>
+<style>
+:root{color-scheme:dark;--bg:#151515;--surface:#1b1b1b;--surface2:#252525;--surface3:#303030;--sep:#303030;--label:#ededed;--label2:#b1b1b1;--label3:#858585;--blue:#6495ff;--red:#ff9494}
+*{box-sizing:border-box}[hidden]{display:none!important}html{min-height:100%;scrollbar-color:#494949 #191919;scrollbar-width:thin;scroll-padding-top:110px}body{margin:0;background:var(--bg);color:var(--label);font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;letter-spacing:-.015em;-webkit-font-smoothing:antialiased}::selection{background:#375995}.sp{flex:1}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.mono{font-family:'SF Mono',Consolas,monospace}.small{font-size:11px}.t2{color:var(--label2)}.t3{color:var(--label3)}.err,.route-error{color:var(--red)}
+button,input,select{font:inherit}button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:6px 11px;border:1px solid #3b3b3b;border-radius:6px;background:#292929;color:#ddd;font-size:12px;font-weight:500;cursor:pointer;transition:background .12s}button:hover:not(:disabled){background:#383838}button:disabled{opacity:.35;cursor:default}button.pri{background:#4678e8;border-color:#5988f0;color:white}button.pri:hover:not(:disabled){background:#5788f5}button.ghost{background:transparent;border-color:transparent;color:var(--label2)}button.ghost:hover:not(:disabled){background:#292929}input[type=text],input[type=datetime-local],select{min-width:0;max-width:100%;min-height:32px;padding:6px 10px;border:1px solid #383838;border-radius:6px;background:#202020;color:var(--label);font-size:12px}input::placeholder{color:#797979}input[type=checkbox]{accent-color:#6495ff;cursor:pointer}input:focus,select:focus{border-color:#6495ff}:is(button,input,select,summary):focus-visible{outline:2px solid #6495ff;outline-offset:3px}.icon{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+header{position:fixed;inset:0 auto 0 0;width:224px;padding:26px 16px 18px;background:#1c1c1c;border-right:1px solid #303030;display:flex;flex-direction:column;gap:26px;z-index:40;overflow-y:auto}.brand{display:flex;align-items:center;gap:10px;padding:0 8px}.app-icon{display:grid;place-items:center;background:#303030;border:1px solid #424242;width:30px;height:30px;border-radius:7px;color:#eee}h1{font-size:14px;font-weight:650;margin:0;letter-spacing:-.02em}.brand small{font-size:10px;color:#828282}.nav-group{display:grid;gap:4px}.nav-group button{justify-content:flex-start;background:transparent;border:0;color:#aaa;padding:9px 11px}.nav-group button.active{background:#303030;color:#fafafa}.nav-group .nav-icon{font-size:16px;width:20px;color:#bcbcbc}.side-label{font-size:10px;font-weight:650;letter-spacing:.07em;color:#828282;margin:0 8px 10px}.device-controls{display:grid;gap:8px;padding:0 7px}#ip{width:100%;font-size:12px}.connection-buttons{display:flex;gap:6px}.connection-buttons button{flex:1;font-size:11px}#status{font-size:11px;color:#a4a4a4;overflow-wrap:anywhere;min-height:16px}.file-options{padding:0 7px}.file-options summary{font-size:11px;color:#aaa;cursor:pointer;margin-bottom:10px}.file-options summary span{display:none}.seg-ctl{display:grid;gap:10px}.seg-ctl label{display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc;cursor:pointer}.seg-ctl input{margin:0;width:14px;height:14px}.seg-ctl .dot{display:none}.kind-desc{margin-left:auto;font-size:10px;color:#818181}.save-location{margin-top:auto;padding:18px 7px 0;border-top:1px solid #303030}.save-location .side-label{margin-left:0}#rawPath{display:block;font-size:10px;color:#999;overflow-wrap:anywhere;line-height:1.8}.sidebar-foot{font-size:10px;color:#696969;margin-top:12px}
+.workspace{margin-left:224px;min-height:100vh}.workspace-title{height:64px;padding:0 30px;border-bottom:1px solid #2c2c2c;display:flex;align-items:center;gap:12px;font-size:13px}.workspace-title span{color:#777}.workspace-title b{font-weight:550}.workspace-title small{margin-left:auto;color:#777;font-size:10px}.download-dock{position:sticky;top:0;z-index:30;background:#1b1b1bf5;border-bottom:1px solid #303030;padding:13px 30px 10px;backdrop-filter:blur(12px)}.dock-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.download-actions{display:flex;align-items:center;gap:8px;width:100%}.selection-summary{font-size:12px;color:#a4a4a4;margin-right:auto}#btnGo{min-width:140px}.bar{height:3px;background:#323232;overflow:hidden;border-radius:2px;margin-top:12px}.bar>div{width:0;height:100%;background:#6495ff;transition:width .2s}.download-meta{font-size:10px;color:#818181;margin-top:7px;min-height:15px}#jobInfo{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+main{padding:30px;max-width:1600px;margin:0 auto}.section-heading{display:flex;align-items:center;gap:10px;margin-bottom:22px}.section-heading h2{font-size:22px;font-weight:600;letter-spacing:-.04em;margin:0}.section-heading span{font-size:11px;color:#929292;background:#272727;border:1px solid #333;padding:1px 7px;border-radius:5px}.section-heading span:empty{display:none}.list-tools{display:flex;align-items:center;gap:8px;margin-bottom:18px}.list-tools input{width:280px;max-width:50%}.list-tools select{margin-left:auto;background:transparent;border-color:#303030}.time-help{font-size:10px;color:#858585;margin:14px 0}.time-help summary{cursor:pointer;list-style:none}.time-help p{max-width:600px;margin:6px 0}.table-labels{display:grid;grid-template-columns:30px 125px minmax(170px,1fr) 120px 190px;align-items:center;padding:9px 14px;border-top:1px solid #333;border-bottom:1px solid #333;background:#1d1d1d;color:#848484;font-size:10px}.table-labels span:last-child{text-align:right}.route{border-bottom:1px solid #292929}.rhead{display:grid;grid-template-columns:30px 1fr 190px;align-items:center;padding:14px;min-height:66px;gap:0}.rhead:hover{background:#ffffff03}.route:has(.route-check:checked){background:#6495ff0a}.route-check{width:14px;height:14px;margin:0}.rtitle{display:grid;grid-template-columns:125px minmax(170px,1fr) 120px;align-items:center;gap:0;min-width:0}.rdate{font-size:12px;color:#bababa}.rtime{font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;padding-right:14px}.rmeta{color:#959595;font-size:11px}.rmeta [data-selcount]{display:block;color:#89aaff;font-size:10px}.warning{color:#b4b4b4}.warning:before{content:'!';display:inline-grid;place-items:center;width:13px;height:13px;border:1px solid #777;border-radius:50%;margin-right:4px;font-size:9px}.route-actions{display:flex;justify-content:flex-end;gap:7px}.route-actions button{font-size:11px;min-height:28px;padding:4px 9px;background:transparent;border-color:transparent;color:#a1a1a1}.route-actions .receive{border-color:#3b3b3b;color:#e0e0e0;background:#252525}.route-actions button:hover:not(:disabled){background:#353535;color:white}.route-error{font-size:11px;padding:0 16px}.route-error:not(:empty){padding-bottom:12px}.rbody{display:none;background:#1c1c1c;border-top:1px solid #2d2d2d;padding:18px 20px 20px}.rbody.open{display:block}.range-tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.range-tools label{font-size:11px;color:#aaa}.range-tools input{margin-left:5px}.range-note{width:100%;font-size:10px;color:#8a8a8a;margin-top:3px}.advanced{border-top:1px solid #303030;padding-top:12px;margin-top:16px}.advanced summary{font-size:11px;color:#aaa;cursor:pointer;width:fit-content}.advanced-info{font-size:10px;color:#888;margin-top:14px}.tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0}.tools .t3{font-size:10px}.tools button{font-size:11px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}.seg{position:relative;background:#262626;border:1px solid #3a3a3a;border-radius:6px;overflow:hidden}.seg.sel{background:#263248;border-color:#6495ff}.seg img{display:block;width:100%;height:100px;object-fit:cover;background:#171717;cursor:pointer}.seg input{position:absolute;left:8px;top:8px;z-index:2}.seg .play{position:absolute;right:7px;top:7px;min-height:23px;font-size:10px;padding:2px 7px;background:#151515d9}.seg .meta{padding:8px;display:grid;gap:3px;cursor:pointer}.seg .tm{font-size:12px}.seg .n{font-size:10px;color:#999}.empty{padding:100px 20px;text-align:center;color:#999;border-bottom:1px solid #2d2d2d}.empty strong{font-weight:500;color:#d0d0d0;line-height:3}.empty span{font-size:11px}.empty::before{content:'↓';display:grid;place-items:center;width:48px;height:48px;border:1px solid #3b3b3b;border-radius:10px;margin:0 auto 14px;font-size:25px;color:#888;background:#202020}
+dialog{padding:0;border:1px solid #484848;border-radius:10px;background:#252525;color:#eee;max-width:min(900px,94vw);box-shadow:0 24px 80px #0009}dialog::backdrop{background:#000a}dialog .dh{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #383838}dialog video{display:block;width:100%;max-height:72vh;background:#000}
+@media(max-width:1150px){.rhead{grid-template-columns:26px 1fr 175px}.rtitle{grid-template-columns:105px minmax(120px,1fr) 85px}.table-labels{grid-template-columns:26px 105px minmax(120px,1fr) 85px 175px}main{padding:24px}.download-dock{padding-left:24px;padding-right:24px}}
+@media(max-width:900px){header{width:190px;padding:20px 12px}.workspace{margin-left:190px}.rhead{grid-template-columns:24px 1fr 88px}.rtitle{display:block}.rdate{font-size:10px;color:#929292}.rtime{padding:3px 8px 3px 0}.rmeta{font-size:10px}.route-actions{flex-direction:column;gap:4px}.table-labels{grid-template-columns:24px 1fr 88px}.table-labels .time-col,.table-labels .duration-col{display:none}.workspace-title{padding:0 24px}.list-tools{flex-wrap:wrap}.list-tools input{width:auto;flex:1;max-width:none;min-width:120px}.list-tools select{max-width:145px}}
+@media(max-width:640px){header{position:relative;inset:auto;width:100%;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:14px;border-right:0;border-bottom:1px solid #333;overflow:visible}.brand{padding:0}.brand small{display:none}.nav-group{display:flex;gap:2px}.nav-group button{padding:6px 8px;font-size:11px}.nav-icon{display:none}.side-section{grid-column:1 / -1}.side-section .side-label{display:none}.device-controls{display:flex;flex-wrap:wrap;padding:0;gap:6px}#ip{flex:1;width:100px}.connection-buttons{gap:5px}.connection-buttons button{white-space:nowrap}#status{width:100%;min-height:0}.file-options{grid-column:1 / -1;padding:0}.file-options summary{margin-bottom:0}.seg-ctl{display:flex;flex-wrap:wrap;margin-top:12px;gap:16px}.save-location{display:none}.workspace{margin-left:0}.workspace-title{display:none}.download-dock{top:0;padding:10px 16px}.selection-summary{font-size:10px}#btnGo{min-width:0;font-size:11px;padding:6px 9px}#btnCancel{font-size:11px;padding:6px 8px}.download-actions{gap:6px}main{padding:23px 16px}.section-heading{margin-bottom:18px}.section-heading h2{font-size:20px}.rhead{padding:12px 8px}.table-labels{padding:9px 8px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rbody{padding:16px 12px}.range-tools{gap:8px}.range-tools label{width:100%}.range-tools input{max-width:calc(100% - 40px)}.tools .sp{display:none}.tools .t3{width:100%}.file-options[open] summary{margin-bottom:5px}.workspace-title small{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* macOS dark finish — preserve the library layout and interactions. */
+:root{--bg:#1e1e20;--surface:#262628;--surface2:#333336;--surface3:#414145;--sep:#ffffff12;--label:#f0f0f2;--label2:#bcbcc1;--label3:#95959c;--blue:#0a84ff}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;letter-spacing:-.012em}
+html{scrollbar-color:#5c5c61 #242426}::selection{background:#0a84ff55}
+header{background:linear-gradient(180deg,#2b2b2ee8,#242427f5);border-right-color:#0005;box-shadow:inset -1px 0 #ffffff06;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.app-icon{background:linear-gradient(#56565c,#38383e);border-color:#ffffff20;box-shadow:inset 0 1px #ffffff1a,0 2px 5px #0003;border-radius:8px;color:#fafafa}
+h1{font-weight:600}.brand small{color:#9999a2}.side-label{color:#9c9ca5;letter-spacing:.04em;font-weight:600}.sidebar-foot{color:#84848c}.save-location{border-top-color:#ffffff0d}#rawPath{color:#a4a4ae}
+.nav-group button{border-radius:7px;color:#c4c4cb;font-weight:450;box-shadow:none}.nav-group button.active{background:#ffffff13;color:#fff;box-shadow:inset 0 1px #ffffff08}.nav-group .nav-icon{color:#64aeff}.nav-group button:hover:not(:disabled){background:#ffffff0c}.nav-group button.active:hover:not(:disabled){background:#ffffff1a}
+button{background:linear-gradient(#48484c,#3b3b3f);border-color:#ffffff0d;border-radius:7px;box-shadow:inset 0 1px #ffffff0d,0 1px 2px #0003;color:#f0f0f3;font-weight:500;transition:background .14s,box-shadow .14s}
+button:hover:not(:disabled){background:linear-gradient(#525257,#46464b)}button:active:not(:disabled){background:#35353a;box-shadow:inset 0 1px 3px #0003}
+button.pri{background:linear-gradient(#2493ff,#087bf2);border-color:#399bff80;box-shadow:inset 0 1px #ffffff21,0 1px 3px #0003;color:white}button.pri:hover:not(:disabled){background:linear-gradient(#3da0ff,#198bff)}button:disabled{opacity:.38}
+button.ghost{background:transparent;box-shadow:none;border-color:transparent;color:#a9a9b2}button.ghost:hover:not(:disabled){background:#ffffff09}
+input[type=text],input[type=datetime-local],select{border-radius:7px;background:#18181a60;border-color:#ffffff0e;box-shadow:inset 0 1px 2px #0002;color:#e8e8ed}input::placeholder{color:#9898a1}input:focus,select:focus{border-color:#0a84ff;box-shadow:0 0 0 3px #0a84ff30}input[type=checkbox]{accent-color:#0a84ff}:is(button,input,select,summary):focus-visible{outline-color:#0a84ff;outline-offset:2px}
+.workspace-title{background:linear-gradient(#313134,#2c2c2f);border-bottom-color:#0005;box-shadow:inset 0 1px #ffffff05}.workspace-title b{color:#e9e9ef;font-weight:550}.workspace-title span,.workspace-title small{color:#a0a0a9}
+.download-dock{background:#29292cee;border-bottom-color:#0005;box-shadow:0 1px #ffffff05;backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}.selection-summary{color:#bcbcc5}.bar{background:#18181bc0;box-shadow:inset 0 1px 1px #0004;border-radius:3px}.bar>div{background:#0a84ff;border-radius:3px}.download-meta{color:#a0a0a9}
+.section-heading h2{font-weight:600;color:#f2f2f5}.section-heading span{border-color:transparent;border-radius:6px;background:#ffffff09;color:#b2b2bb}.list-tools select{background:#36363a;border-color:#ffffff0c;box-shadow:inset 0 1px #ffffff08,0 1px 2px #0002}
+.table-labels{background:#29292d;border-color:#ffffff08;color:#a8a8b1;border-radius:7px 7px 0 0}.route{border-bottom-color:#ffffff07}.route:nth-child(even){background:#ffffff02}.rhead:hover{background:#ffffff04}.route:has(.route-check:checked){background:#0a84ff19}.rdate{color:#c3c3cc}.rtime{color:#eeeef3;font-weight:500}.rmeta{color:#a0a0aa}.rmeta [data-selcount]{color:#75b7ff}.warning{color:#b9b9c1}.warning:before{border-color:#8c8c96}
+.route-actions button{background:transparent;box-shadow:none;border-color:transparent;color:#a9a9b4}.route-actions .receive{background:linear-gradient(#424247,#38383d);border-color:#ffffff0c;box-shadow:inset 0 1px #ffffff08,0 1px 2px #0002;color:#efeff4;border-radius:6px}.route-actions button:hover:not(:disabled){background:#ffffff0d;color:#fff}.route-actions .receive:hover:not(:disabled){background:#4b4b51}
+.rbody{background:#252528;border-top-color:#ffffff09}.range-tools label{color:#c0c0c9}.range-note,.advanced-info,.time-help{color:#a0a0aa}.advanced{border-top-color:#ffffff0b}.advanced summary{color:#b9b9c4}.seg{background:#303034;border-color:#ffffff13;border-radius:9px;box-shadow:0 2px 4px #0002}.seg.sel{background:#203752;border-color:#0a84ff}.seg .play{background:#26262cdd;border-radius:6px}.seg .n{color:#b1b1bb}
+.empty{border-bottom-color:#ffffff08;color:#aaaab4}.empty strong{color:#dcdce3}.empty::before{background:linear-gradient(#39393e,#2b2b30);border-color:#ffffff12;color:#bbbcc6;border-radius:12px;box-shadow:inset 0 1px #ffffff0b,0 4px 10px #0002}
+dialog{border-radius:12px;background:#303034;border-color:#ffffff23;box-shadow:0 24px 80px #0009,inset 0 1px #ffffff0d}dialog .dh{background:#35353a;border-bottom-color:#0004}
+
+.rhead{cursor:pointer}.rtitle:focus-visible{outline:2px solid #0a84ff;outline-offset:4px;border-radius:4px}.rtitle .rdate::before{content:'›';display:inline-block;width:12px;margin-left:-12px;color:#999;font-size:14px;transition:transform .15s}.route.open .rtitle .rdate::before{transform:rotate(90deg)}
+
+.path-edit{font-size:10px;color:#aaa;margin-top:10px}.path-edit summary{cursor:pointer}.path-edit input{width:100%;margin:8px 0}#folderStatus{display:block;font-size:10px;color:#aaa;margin-top:7px}@media(max-width:640px){.save-location{display:block;grid-column:1/-1;margin-top:0;padding-top:10px}}
+
+.dialog-content{padding:24px;max-width:560px;min-width:min(380px,85vw)}.dialog-content p{color:#bcbcc5;font-size:12px;line-height:1.7}.dialog-content h2{font-size:19px;margin:0 0 12px}.dialog-actions{display:flex;justify-content:flex-end;margin-top:24px}#completionPaths{font-size:11px;color:#aaa;overflow-wrap:anywhere;display:grid;gap:8px}.download-actions{flex-wrap:wrap}@media(max-width:640px){.selection-summary{flex-basis:100%}#folderSettings{margin-right:auto}}
+</style>
+</head>
+<body>
+
+<header>
+ <div class="brand"><div class="app-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg></div><div><h1>로그 다운로더</h1><small>DEVICE FILE MANAGER</small></div></div>
+ <nav class="nav-group" aria-label="주행 보기"><button id="navAll" class="active"><span class="nav-icon">▤</span>모든 녹화</button><button id="navSelected"><span class="nav-icon">☑</span>선택한 녹화</button></nav>
+ <div class="side-section"><div class="side-label">DEVICE</div><div class="device-controls"><input id="ip" type="text" class="mono" placeholder="기기 IP" aria-label="기기 IP 주소"><div class="connection-buttons"><button id="btnScan">기기 찾기</button><button id="btnLoad">불러오기</button></div><span id="status" role="status"></span></div></div>
+ <div class="side-section"><div class="side-label">DOWNLOAD OPTIONS</div><details class="file-options"><summary>로그 + 영상 <span>저장 옵션</span></summary><div class="seg-ctl" role="group" aria-label="다운로드 파일 종류">
+      <label><input type="checkbox" class="kind" value="rlog" checked><span class="dot"></span>rlog <span class="kind-desc">상세 로그</span></label>
+      <label><input type="checkbox" class="kind" value="qcamera" checked><span class="dot"></span>qcamera <span class="kind-desc">영상</span></label>
+      <label><input type="checkbox" class="kind" value="qlog"><span class="dot"></span>qlog <span class="kind-desc">요약 로그</span></label>
+    </div></details></div>
+ <div class="save-location"><div class="side-label">저장 위치</div><span id="rawPath"></span><div class="sidebar-foot">Local workspace · Library UI</div></div>
+</header><div class="workspace"><div class="workspace-title"><span>기기</span><span>/</span><b>녹화 기록</b><small>LIBRARY</small></div>
+<section class="download-dock" aria-label="다운로드 도구 모음">
+  <div class="dock-row">
+    
+    <div class="download-actions"><span id="selInfo" class="selection-summary" aria-live="polite">선택 없음</span><button id="folderSettings">저장 폴더…</button><button id="btnCancel" disabled>중단</button><button id="btnGo" class="pri" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>선택한 파일 받기</button></div>
+  </div>
+  <div class="bar" role="progressbar" aria-label="다운로드 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="prog"></div></div>
+  <div class="download-meta"><div id="jobInfo" role="status">받을 주행의 ‘전체 받기’를 누르세요.</div></div>
+</section>
+<main><div class="section-heading"><h2>녹화 기록</h2><span id="routeCount"></span></div><div class="list-tools"><input id="search" type="text" placeholder="날짜 또는 주행 ID 검색" aria-label="주행 검색"><select id="sort" aria-label="주행 정렬"><option value="device">최근 기록 순</option><option value="time">시작 시간 최신순</option><option value="old">시작 시간 오래된순</option></select><button id="clearSelection" class="ghost">모든 선택 해제</button></div><div class="table-labels"><span></span><span>날짜</span><span class="time-col">녹화 시간</span><span class="duration-col">길이</span><span>다운로드</span></div><div id="routes" class="empty"><strong>기기를 연결하면 녹화 기록이 표시됩니다.</strong><br><span>같은 네트워크에서 기기 IP를 확인하고 상단의 불러오기를 누르세요.</span></div><details class="time-help"><summary>시간은 한국 시간 기준입니다 <span>ⓘ</span></summary><p>보유 영상 파일 수정시각으로 추정합니다. 실제 주행 시각과 다를 수 있으며, 누락된 구간은 포함하지 않습니다.</p></details></main></div>
+
+<dialog id="folderDialog" aria-labelledby="folderTitle"><div class="dh"><b id="folderTitle">다운로드 폴더 지정</b><span class="sp"></span><button onclick="$('folderDialog').close()">닫기</button></div><div class="dialog-content"><p>기록 날짜와 시간으로 된 하위 폴더가 이 위치에 만들어집니다.</p><button id="chooseFolder" >탐색기에서 선택…</button><details class="path-edit" open><summary>경로 직접 입력</summary><input id="folderPath" type="text" aria-label="다운로드 폴더 경로"><button id="saveFolder">적용</button></details><span id="folderStatus" role="status"></span></div></dialog>
+<dialog id="completion" aria-labelledby="completionTitle"><div class="dialog-content"><h2 id="completionTitle"></h2><p id="completionMessage"></p><div id="completionPaths"></div><div class="dialog-actions"><button class="pri" id="completionClose">확인</button></div></div></dialog>
+<dialog id="player">
+  <div class="dh">
+    <b id="pvTitle" class="mono small"></b><span class="sp"></span>
+    <button class="ghost" onclick="document.getElementById('player').close()">닫기</button>
+  </div>
+  <video id="pvVideo" controls preload="metadata"></video>
+</dialog>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const state = { routes: [], sel: new Map(), busy: false, cancelled: false, cache: new Map(), view: "all", loading: false };   // sel: route -> Set(segment)
+
+const j = async (url, opt) => {
+  const r = await fetch(url, opt);
+  const t = await r.text();
+  let d; try { d = JSON.parse(t); } catch { d = { error: t.slice(0, 200) }; }
+  if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+  return d;
+};
+const post = (url, body) => j(url, {
+  method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body || {})
+});
+
+/* ── 시간 표기 ── */
+const two = n => String(n).padStart(2, "0");
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function parts(ep) {
+  if (!Number.isFinite(Number(ep)) || Number(ep) <= 0) return null;
+  const d = new Date(Number(ep) * 1000 + 9 * 3600000);
+  return {date:`${d.getUTCFullYear()}.${two(d.getUTCMonth()+1)}.${two(d.getUTCDate())}`, time:`${two(d.getUTCHours())}:${two(d.getUTCMinutes())}:${two(d.getUTCSeconds())}`};
+}
+function stamp(ep) { const p = parts(ep); return p ? `${p.date} ${p.time}` : "시간 미확인"; }
+const hm = ep => parts(ep)?.time || "시간 미확인";
+function dur(a,b) { if (!a || !b || b < a) return "길이 미확인"; const m=Math.floor((b-a)/60), sec=Math.floor((b-a)%60); return m>=60 ? `${Math.floor(m/60)}시간 ${m%60}분` : m ? `${m}분 ${sec}초` : `${sec}초`; }
+function rangeLabel(a,b) { const x=parts(a),y=parts(b); if (!x) return "시간 미확인"; return `${x.time} → ${y ? (x.date===y.date ? y.time : `${y.date} ${y.time}`) : '종료 미확인'}`; }
+function suspicious(r) { return r.routeStartEpoch && r.routeEndEpoch && (r.routeEndEpoch < r.routeStartEpoch || r.routeEndEpoch-r.routeStartEpoch > Math.max(86400, Number(r.segmentCount)*120)); }
+function localValue(ep) { const p=parts(ep); return p ? p.date.replaceAll('.', '-')+'T'+p.time : ''; }
+const mb = n => n >= 1048576 ? (n/1048576).toFixed(1) + "MB" : Math.round(n/1024) + "KB";
+
+/* ── 기기 ── */
+async function loadConfig() {
+  const c = await j("/api/config");
+  if (c.ip) $("ip").value = c.ip;
+  if(!c.timeRecovery) throw new Error("새 서버를 열어 주세요: http://127.0.0.1:8778/");
+  $("rawPath").textContent = c.raw;
+  $("rawPath").title = c.raw; $("folderPath").value=c.raw;
+}
+$("folderSettings").onclick=()=>{$("folderStatus").textContent='';$("folderDialog").showModal();};
+$("completionClose").onclick=()=>$("completion").close();
+async function changeFolder(picker){
+  $("chooseFolder").disabled=true;$("saveFolder").disabled=true;$("folderStatus").textContent=picker?'폴더 선택 중…':'저장 중…';
+  try{const d=await post(picker?'/api/choose-download-directory':'/api/set-download-directory',{path:$("folderPath").value});$("rawPath").textContent=d.raw;$("rawPath").title=d.raw;$("folderPath").value=d.raw;$("folderStatus").textContent=d.cancelled?'':'저장 위치가 변경되었습니다.';}
+  catch(e){$("folderStatus").textContent=e.message;}
+  finally{$("chooseFolder").disabled=state.busy;$("saveFolder").disabled=state.busy;}
+}
+$("chooseFolder").onclick=()=>changeFolder(true);$("saveFolder").onclick=()=>changeFolder(false);
+$("btnScan").onclick = async () => {
+  $("status").textContent = "찾는 중…";
+  try {
+    const d = await post("/api/scan");
+    $("status").textContent = d.found.length ? d.found.join(", ") : "못 찾음";
+    if (d.ip) $("ip").value = d.ip;
+  } catch (e) { $("status").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+
+/* ── route 목록 ── */
+$("btnLoad").onclick = async () => {
+  if(state.busy || state.loading) return;
+  state.loading=true; refreshFooter();
+  $("btnLoad").disabled = true;
+  $("status").textContent = "불러오는 중…";
+  try {
+    await post("/api/setip", { ip: $("ip").value });
+    const d = await j("/dev/api/dashcam/routes?limit=200&segment_limit=1");
+    const pending=d.routes || [];
+    state.routes=[];state.sel.clear();state.cache.clear();
+    $("routes").className='empty';$("routes").textContent='첫 녹화의 시간을 확인하는 중…';
+    refreshFooter();
+    for(let i=0;i<pending.length;i++){
+      const r=pending[i];
+      $("status").textContent=`로그 시각 확인 ${i+1}/${pending.length}…`;
+      try{
+        const fixed=await j(`/api/route-times/${encodeURIComponent(r.route)}`);
+        if(!fixed.timeCorrected)throw new Error('시각 복구 응답이 없습니다');
+        state.cache.set(r.route,fixed);
+        Object.assign(r,{routeStartEpoch:fixed.routeStartEpoch,routeEndEpoch:fixed.routeEndEpoch,timeCorrected:true,unresolvedSegments:fixed.unresolvedSegments||0});
+      }catch(e){r.rawStartEpoch=r.routeStartEpoch;r.rawEndEpoch=r.routeEndEpoch;r.routeStartEpoch=0;r.routeEndEpoch=0;r.timeError=e.message;}
+      state.routes.push(r);renderRoutes();
+    }
+    refreshFooter();
+    $("status").textContent = `주행 ${d.total ?? state.routes.length}개`;
+    renderRoutes();
+  } catch (e) {
+    $("status").innerHTML = `<span class="err">${esc(e.message)}</span>`;
+    $("routes").className = "empty";
+    $("routes").innerHTML = `<span class="err">${esc(e.message)}</span>`;
+  } finally { state.loading=false;refreshFooter(); }
+};
+
+function renderRoutes() {
+  const box = $("routes"), query=$("search").value.toLowerCase().trim();
+  const routes=state.routes.filter(r => (state.view!=="selected" || state.sel.get(r.route)?.size) && `${r.route} ${stamp(r.routeStartEpoch)} ${stamp(r.routeEndEpoch)}`.toLowerCase().includes(query));
+  if ($("sort").value !== "device") routes.sort((a,b)=>($("sort").value==='old'?1:-1)*((a.routeStartEpoch||0)-(b.routeStartEpoch||0)));
+  $("routeCount").textContent=routes.length ? `${routes.length}개 주행` : "";
+  box.className = "";
+  const markup = routes.map(r => {
+    const n = state.sel.get(r.route)?.size || 0;
+    return `<div class="route" data-route="${esc(r.route)}">
+      <div class="rhead">
+        <input class="route-check" type="checkbox" aria-label="${esc(stamp(r.routeStartEpoch))} 주행 선택" ${n?'checked':''}>
+        <div class="rtitle" role="button" tabindex="0" aria-expanded="false" aria-label="녹화 동영상 목록 펼치기"><div class="rdate">${parts(r.routeStartEpoch)?.date || '날짜 미확인'}</div>
+        <div class="rtime">${rangeLabel(r.routeStartEpoch,r.routeEndEpoch)}</div>
+        <div title="${esc(r.timeError || (r.timeCorrected?'정상 로그 시계와 경과시간으로 복구한 범위':'영상 파일 수정시각 기준'))}" class="rmeta ${suspicious(r)||r.timeError?'warning':''}">${r.timeError?'시각 복구 불가':suspicious(r)?'시간 확인 필요':dur(r.routeStartEpoch,r.routeEndEpoch)}${r.timeCorrected?'<span class="small t3" style="display:block">로그 시계 기준'+(r.unresolvedSegments?' · '+r.unresolvedSegments+'구간 시각 없음':'')+'</span>':''}<span data-selcount>${n?' · '+n+'구간 선택':''}</span></div></div>
+        <div class="route-actions"><button data-act="toggle" aria-expanded="false">일부만 받기</button><button class="receive" data-act="receive">전체 받기 ↓</button></div>
+      </div><div class="rbody"></div><div class="route-error" role="status"></div></div>`;
+  }).join("") || `<div class="empty">${query?'검색 결과가 없습니다.':state.view==='selected'?'선택한 녹화이 없습니다.':'녹화 기록이 없습니다.'}</div>`;
+  const existing=new Map([...box.querySelectorAll(':scope > .route')].map(el=>[el.dataset.route,el]));
+  const template=document.createElement('template');template.innerHTML=markup;
+  const nodes=[...template.content.children].map(el=>existing.get(el.dataset.route)||el);
+  for(const el of [...box.childNodes])if(!nodes.includes(el))el.remove();
+  nodes.forEach((el,i)=>{if(box.children[i]!==el)box.insertBefore(el,box.children[i]||null);});
+
+}
+$("navAll").onclick=()=>{state.view='all';$("navAll").classList.add('active');$("navSelected").classList.remove('active');renderRoutes();};
+$("navSelected").onclick=()=>{state.view='selected';$("navSelected").classList.add('active');$("navAll").classList.remove('active');renderRoutes();};
+$("search").oninput=renderRoutes; $("sort").onchange=renderRoutes;
+$("clearSelection").onclick=()=>{state.sel.clear();$("routes").innerHTML="";renderRoutes();refreshFooter();};
+async function getSegments(route) {
+  if(state.cache.has(route)) return state.cache.get(route);
+  const d=await j(`/dev/api/dashcam/segments/${encodeURIComponent(route)}?limit=2000`);
+  if(d.segmentsHasMore || d.hasMore) throw new Error('전체 목록을 불러오지 못했습니다. 구간 수를 확인해 주세요.');
+  const r=state.routes.find(r=>r.route===route);
+  if(r?.timeError) d.segmentTimes={};
+  state.cache.set(route,d); return d;
+}
+$("routes").addEventListener('change',async e=>{
+  if(!e.target.matches('.route-check'))return;
+  const card=e.target.closest('.route'),route=card.dataset.route,checked=e.target.checked;
+  e.target.disabled=true;
+  try {if(checked){const d=await getSegments(route);state.sel.set(route,new Set(d.segments||[]));}else state.sel.delete(route);card.remove();renderRoutes();refreshFooter();}
+  catch(err){e.target.checked=false;card.querySelector('.route-error').textContent=err.message;}
+  finally {e.target.disabled=false;}
+});
+$("routes").addEventListener('keydown',e=>{
+  if(e.target.matches('.rtitle') && ['Enter',' '].includes(e.key)){e.preventDefault();e.target.click();}
+});
+$("routes").addEventListener("click", async (ev) => {
+  let button=ev.target.closest('[data-act]');
+  if(!button){
+    const head=ev.target.closest('.rhead');
+    if(!head || ev.target.closest('input,button,a,label'))return;
+    button=head.querySelector('[data-act="toggle"]');
+  }
+  if(state.busy)return;
+  const card=button.closest('.route'),route=card.dataset.route,body=card.querySelector('.rbody');
+  card.querySelector('.route-error').textContent='';
+  if(button.dataset.act==='receive'){
+    button.disabled=true;button.textContent='준비 중…';
+    try{const d=await getSegments(route);await runDownload([[route,[...(d.segments||[])]]]);}
+    catch(e){card.querySelector('.route-error').textContent=e.message;}
+    finally{button.disabled=false;button.textContent='전체 받기 ↓';}return;
+  }
+  const open=!body.classList.contains('open');
+  body.classList.toggle('open',open);card.classList.toggle('open',open);button.setAttribute('aria-expanded',String(open));button.textContent=open?'접기':'일부만 받기';
+  card.querySelector('.rtitle').setAttribute('aria-expanded',String(open));
+  if(!open || body.dataset.loaded)return;
+  body.innerHTML='<div class="tools t3 small">시간 범위를 불러오는 중…</div>';
+  try{renderSegments(body,route,await getSegments(route));body.dataset.loaded='1';}
+  catch(e){body.innerHTML='';card.querySelector('.route-error').textContent=e.message;}
+});
+
+function renderSegments(body, route, d) {
+  const segs = [...(d.segments || [])].sort((a,b)=>Number(a.split("--").pop())-Number(b.split("--").pop())), times = d.segmentTimes || {};
+  body.innerHTML = `
+    <div class="range-tools"><label>시작 <input type="datetime-local" step="1" class="timeFrom" aria-label="선택 시작 시간"></label><span>→</span><label>종료 <input type="datetime-local" step="1" class="timeTo" aria-label="선택 종료 시간"></label><button class="pri" data-a="download-time">이 시간대 받기 ↓</button><div class="range-note" aria-live="polite">시작과 종료를 지정하세요. 파일은 약 1분 단위로 저장됩니다.</div></div>
+    <details class="advanced" open><summary>동영상 목록 · 세부 선택</summary><div class="advanced-info">주행 ID <code>${esc(route)}</code></div>
+    <div class="tools">
+      <input type="text" class="mono rangeIn" size="15" placeholder="예: 0-70, 85" aria-label="세그먼트 번호 범위">
+      <button data-a="range">번호로 선택</button>
+      <button data-a="all">이 주행 전체 선택</button>
+      <button data-a="none" class="ghost">해제</button>
+      <span class="sp"></span>
+      <span class="small t3">체크박스·시간 영역: 선택 / 영상: 미리보기</span>
+    </div>
+    <div class="grid">${segs.map(s => {
+      const i = Number(s.split("--").pop()), t = times[s] || {};
+      return `<div class="seg" data-seg="${s}">
+        <input type="checkbox" data-a="pick" aria-label="${i}번 구간 선택" ${state.sel.get(route)?.has(s)?"checked":""}>
+        <button class="play" data-a="play" aria-label="${i}번 구간 영상 재생">▶ 재생</button>
+        <img loading="lazy" data-a="play"
+             data-src="/dev/api/dashcam/thumbnail/${encodeURIComponent(s)}" alt="">
+        <div class="meta" data-a="select"><span class="tm">${hm(t.startEpoch)}</span><span class="n">구간 ${i} · ${t.endEpoch ? "~ "+hm(t.endEpoch) : "종료 미확인"}</span></div>
+      </div>`;
+    }).join("")}</div></details>`;
+
+  body.querySelector('.advanced').addEventListener('toggle',e=>{
+    if(e.target.open) body.querySelectorAll('img[data-src]').forEach(img=>{img.src=img.dataset.src;delete img.dataset.src;});
+  });
+  body.querySelectorAll('img[data-src]').forEach(img=>{img.src=img.dataset.src;delete img.dataset.src;});
+  const grid = body.querySelector(".grid");
+  const epochs=segs.map(s=>times[s]?.startEpoch).filter(Boolean);
+  const segmentEnd=(s)=>{const t=times[s]||{};const next=times[segs[segs.indexOf(s)+1]]?.startEpoch;return t.endEpoch>t.startEpoch ? t.endEpoch : next>t.startEpoch && next<=t.startEpoch+60 ? next : t.startEpoch+60;};
+  if(epochs.length){body.querySelector('.timeFrom').value=localValue(Math.min(...epochs));body.querySelector('.timeTo').value=localValue(Math.max(...segs.filter(s=>times[s]?.startEpoch).map(segmentEnd)));}
+
+  const setSel = () => {
+    const s = new Set([...grid.querySelectorAll('input[data-a="pick"]:checked')]
+      .map(c => c.closest(".seg").dataset.seg));
+    s.size ? state.sel.set(route, s) : state.sel.delete(route);
+    grid.querySelectorAll(".seg").forEach(el =>
+      el.classList.toggle("sel", el.querySelector("input").checked));
+    const b = body.closest(".route").querySelector("[data-selcount]");
+    if (b) {
+      b.textContent = s.size ? " · "+s.size + "구간 선택" : "";
+      body.closest(".route").querySelector(".route-check").checked=!!s.size;
+      b.classList.toggle("on", !!s.size);
+    }
+    refreshFooter();
+  };
+
+  body.querySelector('[data-a="all"]').onclick = () => {
+    grid.querySelectorAll("input").forEach(c => c.checked = true); setSel();
+  };
+  body.querySelector('[data-a="none"]').onclick = () => {
+    grid.querySelectorAll("input").forEach(c => c.checked = false); setSel();
+  };
+  const selectTime=()=>{
+    const a=Date.parse(body.querySelector('.timeFrom').value+'+09:00')/1000,b=Date.parse(body.querySelector('.timeTo').value+'+09:00')/1000;
+    const note=body.querySelector('.range-note');
+    if(!Number.isFinite(a)||!Number.isFinite(b)||a>=b){note.textContent='시작보다 늦은 종료 시간을 입력하세요.';return false;}
+    let count=0;
+    grid.querySelectorAll('.seg').forEach(el=>{const t=times[el.dataset.seg]||{};const yes=!!t.startEpoch && t.startEpoch<b && segmentEnd(el.dataset.seg)>a;el.querySelector('input').checked=yes;if(yes)count++;});
+    setSel(); note.textContent=count ? `${count}개 구간 · 약 ${count}분 분량을 받습니다.` : '이 시간대에 저장된 구간이 없습니다.';
+    return count>0;
+  };
+  body.querySelector('[data-a="download-time"]').onclick=async()=>{
+    if(selectTime()) await runDownload([[route,[...state.sel.get(route)]]]);
+  };
+  body.querySelector('[data-a="range"]').onclick = () => {
+    const want = parseRange(body.querySelector(".rangeIn").value);
+    grid.querySelectorAll(".seg").forEach(el => {
+      el.querySelector("input").checked = want.has(Number(el.dataset.seg.split("--").pop()));
+    });
+    setSel();
+  };
+  body.querySelector(".rangeIn").addEventListener("keydown", e => {
+    if (e.key === "Enter") body.querySelector('[data-a="range"]').click();
+  });
+  grid.addEventListener("change", ev => { if (ev.target.dataset.a === "pick") setSel(); });
+  grid.addEventListener("click", ev => {
+    if(ev.target.closest('[data-a="select"]')){const c=ev.target.closest('.seg').querySelector('input');c.checked=!c.checked;setSel();return;}
+    if (ev.target.dataset.a !== "play") return;
+    const seg = ev.target.closest(".seg").dataset.seg;
+    $("pvTitle").textContent = `${stamp(times[seg]?.startEpoch)} · ${seg}`;
+    $("pvVideo").src = `/dev/api/dashcam/video/${encodeURIComponent(seg)}`;
+    $("player").showModal();
+  });
+  setSel();
+}
+
+/* '0-70, 85, 90~95' → Set(정수) */
+function parseRange(spec) {
+  const out = new Set();
+  String(spec || "").replace(/\s/g, "").split(",").forEach(tok => {
+    if (!tok) return;
+    if (/^[-:~]/.test(tok)) tok = "0" + tok;
+    const m = tok.match(/^(\d+)[-:~](\d*)$/);
+    if (m) {
+      let lo = +m[1], hi = m[2] === "" ? 99999 : +m[2];
+      if (lo > hi) [lo, hi] = [hi, lo];
+      for (let i = lo; i <= Math.min(hi, lo + 5000); i++) out.add(i);
+    } else if (/^\d+$/.test(tok)) out.add(+tok);
+  });
+  return out;
+}
+$("player").addEventListener("close", () => { $("pvVideo").pause(); $("pvVideo").src = ""; });
+
+/* ── 다운로드 ── */
+const selected = () => {
+  const routes = [...state.sel.keys()];
+  return { routes, total: routes.reduce((a, r) => a + state.sel.get(r).size, 0) };
+};
+const kinds = () => [...document.querySelectorAll(".kind:checked")].map(c => c.value);
+
+function refreshFooter() {
+  const { routes, total } = selected(), k = kinds();
+  $("selInfo").textContent = total
+    ? `${routes.length}개 주행 선택 · ${total * k.length}개 파일`
+    : "주행을 골라 바로 받으세요";
+  $("btnGo").disabled = state.busy || !total || !k.length;
+  $("clearSelection").hidden=!total;
+  document.querySelectorAll('.receive, [data-a="download-time"], .route-check, .kind').forEach(el=>el.disabled=state.busy);
+  $("btnLoad").disabled=state.busy||state.loading; $("btnScan").disabled=state.busy||state.loading; $("ip").disabled=state.busy||state.loading; $("chooseFolder").disabled=state.busy; $("saveFolder").disabled=state.busy; $("folderSettings").disabled=state.busy;
+}
+document.querySelectorAll(".kind").forEach(c => c.onchange = ()=>{
+  const names={rlog:'로그',qcamera:'영상',qlog:'요약 로그'};
+  document.querySelector('.file-options summary').innerHTML=kinds().map(k=>names[k]).join(' + ')+' <span>저장 옵션</span>';
+  refreshFooter();
+});
+
+$("btnGo").onclick=()=>runDownload([...state.sel].map(([r,s])=>[r,[...s]]));
+function recordingBounds(route, segments) {
+  const times=state.cache.get(route)?.segmentTimes || {};
+  const bounds=segments.map(seg=>{
+    const t=times[seg] || {}, start=Number(t.startEpoch), end=Number(t.endEpoch);
+    // Missing or clock-jump metadata cannot reliably name a recording folder.
+    if(!Number.isFinite(start) || start<=0 || !Number.isFinite(end) || end<=start || end-start>300) return null;
+    return [start,end];
+  });
+  if(!bounds.length || bounds.some(b=>!b)) return {recordingStartEpoch:null,recordingEndEpoch:null};
+  return {recordingStartEpoch:Math.min(...bounds.map(b=>b[0])),recordingEndEpoch:Math.max(...bounds.map(b=>b[1]))};
+}
+async function runDownload(queue) {
+  const k=kinds();
+  if(state.busy)return;
+  if(!k.length){$("jobInfo").textContent='저장 옵션에서 파일 종류를 선택해 주세요.';return;}
+  if(!queue.some(([,segs])=>segs.length)){$("jobInfo").textContent='받을 파일이 없습니다.';return;}
+  const completed=[],paths=[];let failure=null;
+  state.busy=true; state.cancelled=false; $("jobInfo").textContent="다운로드 준비 중…"; refreshFooter();
+  try {
+    for (const [r, chosen] of queue) {
+      if(state.cancelled) break;
+      const segs = chosen.sort(
+        (a, b) => Number(a.split("--").pop()) - Number(b.split("--").pop()));
+      const result=await post("/api/download", { route: r, segments: segs, kinds: k, ...recordingBounds(r,segs) });
+      if(result.out){$("jobInfo").title=result.out;paths.push(result.out);}
+      completed.push(await waitJob());
+    }
+  } catch (e) { failure=e.message;$("jobInfo").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  state.busy=false; $("btnCancel").disabled=true; refreshFooter();
+  const failed=completed.reduce((n,s)=>n+(s.log||[]).filter(x=>!['ok','skip','cancel'].includes(x.status)).length,0);
+  const unverified=completed.some(s=>s.done>=500 && (s.log||[]).length<s.done);
+  const incomplete=completed.some(s=>s.done<s.total);
+  const done=completed.reduce((n,s)=>n+s.done,0);
+  $("completionTitle").textContent=failure?'다운로드 오류':state.cancelled?'다운로드 중단':failed||incomplete?'일부 파일을 받지 못했습니다':unverified?'다운로드 작업 종료':'다운로드 완료';
+  $("completionMessage").textContent=failure || (state.cancelled?'다운로드를 중단했습니다. 완료된 파일은 저장되어 있습니다.':failed?`${done}개 파일 처리 · 누락/실패 ${failed}개${unverified?' 이상':''}`:incomplete?'일부 파일 처리가 완료되지 않았습니다.':unverified?`${done}개 파일 처리. 최근 500개 파일의 결과만 확인할 수 있습니다.`:`${done}개 파일 처리가 완료되었습니다. 기존 파일은 그대로 유지됩니다.`);
+  $("completionPaths").replaceChildren(...[...new Set(paths.concat(completed.map(s=>s.out).filter(Boolean)))].map(path=>{const el=document.createElement('div');el.textContent=path;return el;}));
+  $("completion").showModal();
+};
+$("btnCancel").onclick = async () => {state.cancelled=true; try {await post("/api/cancel");} catch(e){$("jobInfo").textContent=e.message;} };
+
+function waitJob() {
+  return new Promise((res,reject) => {
+    const tick = async () => {
+      let s; try { s = await j("/api/job"); } catch(e) { return reject(e); }
+      const percent=s.total ? Math.round(s.done / s.total * 100) : 0;
+      $("prog").style.width = percent + "%";
+      $("prog").parentElement.setAttribute("aria-valuenow", String(percent));
+      $("btnCancel").disabled = !s.active;
+      const el = (Date.now() / 1000 - (s.started || 0)) || 1;
+      $("jobInfo").textContent =
+        `${s.active ? "받는 중" : s.cancel ? "중단됨" : "완료"} · ${s.done}/${s.total}개 파일 · ${mb(s.bytes)} · ${(s.bytes / 1048576 / el).toFixed(1)}MB/s`
+        ;
+      if (s.active) setTimeout(tick, 400); else { const failures=(s.log||[]).filter(x=>!["ok","skip","cancel"].includes(x.status)); if(failures.length) $("jobInfo").textContent += ` · 누락/실패 ${failures.length}개`; if(s.cancel) state.cancelled=true; res(s); }
+    };
+    tick();
+  });
+}
+
+loadConfig().then(()=>{refreshFooter();if($("ip").value.trim()) $("btnLoad").click();}).catch(e=>{$("status").textContent=e.message;});
+</script>
+</body>
+</html>
