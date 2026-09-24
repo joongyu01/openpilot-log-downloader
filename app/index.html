@@ -44,7 +44,7 @@ dialog{border-radius:12px;background:#303034;border-color:#ffffff23;box-shadow:0
 .path-edit{font-size:10px;color:#aaa;margin-top:10px}.path-edit summary{cursor:pointer}.path-edit input{width:100%;margin:8px 0}#folderStatus{display:block;font-size:10px;color:#aaa;margin-top:7px}@media(max-width:640px){.save-location{display:block;grid-column:1/-1;margin-top:0;padding-top:10px}}
 
 .dialog-content{padding:24px;max-width:560px;min-width:min(380px,85vw)}.dialog-content p{color:#bcbcc5;font-size:12px;line-height:1.7}.dialog-content h2{font-size:19px;margin:0 0 12px}.dialog-actions{display:flex;justify-content:flex-end;margin-top:24px}#completionPaths{font-size:11px;color:#aaa;overflow-wrap:anywhere;display:grid;gap:8px}.download-actions{flex-wrap:wrap}@media(max-width:640px){.selection-summary{flex-basis:100%}#folderSettings{margin-right:auto}}
-</style>
+[hidden]{display:none!important}#player{width:1440px;max-width:96vw;max-height:94vh;overflow:auto;--muted:#a9a9b0;--orange:#0a84ff}#player>.dh{position:sticky;top:0;z-index:2;background:#303034}#player .radar-review{padding:16px;margin:0}#player .card{background:#252528;border:1px solid #3b3b40;border-radius:10px}#player .card-pad{padding:18px}#player .eyebrow{font-size:11px;color:#9a9aa3;margin-bottom:6px}#player h2{font-size:20px}#player .tiny{font-size:11px}#player .muted{color:#a9a9b0}#player video{max-height:48vh}#player .video-stage{margin:0}#player .radar-toolbar label{display:grid;gap:5px}#player .radar-toolbar select{max-width:150px}#player .radar-graph{height:240px}#player .radar-map{height:340px}</style>
 </head>
 <body>
 
@@ -62,7 +62,7 @@ dialog{border-radius:12px;background:#303034;border-color:#ffffff23;box-shadow:0
 <section class="download-dock" aria-label="다운로드 도구 모음">
   <div class="dock-row">
     
-    <div class="download-actions"><span id="selInfo" class="selection-summary" aria-live="polite">선택 없음</span><button id="folderSettings">저장 폴더…</button><button id="btnCancel" disabled>중단</button><button id="btnGo" class="pri" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>선택한 파일 받기</button></div>
+    <div class="download-actions"><span id="selInfo" class="selection-summary" aria-live="polite">선택 없음</span><button id="lastDownload" hidden>최근 다운로드</button><button id="folderSettings">저장 폴더…</button><button id="btnCancel" disabled>중단</button><button id="btnGo" class="pri" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>선택한 파일 받기</button></div>
   </div>
   <div class="bar" role="progressbar" aria-label="다운로드 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="prog"></div></div>
   <div class="download-meta"><div id="jobInfo" role="status">받을 주행의 ‘전체 받기’를 누르세요.</div></div>
@@ -76,7 +76,8 @@ dialog{border-radius:12px;background:#303034;border-color:#ffffff23;box-shadow:0
     <b id="pvTitle" class="mono small"></b><span class="sp"></span>
     <button class="ghost" onclick="document.getElementById('player').close()">닫기</button>
   </div>
-  <video id="pvVideo" controls preload="metadata"></video>
+  <p id="radarBootMessage" role="status" style="padding:0 18px">레이더 검증 화면을 여는 중…</p>
+  <section class="video-stage"><video id="pvVideo" controls preload="metadata"></video></section>
 </dialog>
 
 <script>
@@ -325,9 +326,7 @@ function renderSegments(body, route, d) {
     if(ev.target.closest('[data-a="select"]')){const c=ev.target.closest('.seg').querySelector('input');c.checked=!c.checked;setSel();return;}
     if (ev.target.dataset.a !== "play") return;
     const seg = ev.target.closest(".seg").dataset.seg;
-    $("pvTitle").textContent = `${stamp(times[seg]?.startEpoch)} · ${seg}`;
-    $("pvVideo").src = `/dev/api/dashcam/video/${encodeURIComponent(seg)}`;
-    $("player").showModal();
+    openRadarReview(seg, times[seg]?.startEpoch);
   });
   setSel();
 }
@@ -347,7 +346,24 @@ function parseRange(spec) {
   });
   return out;
 }
-$("player").addEventListener("close", () => { $("pvVideo").pause(); $("pvVideo").src = ""; });
+let radarReview=null, radarModule=null, previewGeneration=0;
+async function openRadarReview(seg, epoch){
+  const generation=++previewGeneration;
+  $("pvTitle").textContent=`${stamp(epoch)} · ${seg}`;
+  const videoUrl=`/dev/api/dashcam/video/${encodeURIComponent(seg)}`;
+  $("pvVideo").src=videoUrl;
+  $("radarBootMessage").hidden=false;$("radarBootMessage").textContent='레이더 검증 화면을 여는 중…';
+  if(!$("player").open)$("player").showModal();
+  try{
+    radarModule ||= import('/radar_view.js');
+    const module=await radarModule;
+    if(generation!==previewGeneration)return;
+    radarReview ||= module.attachRadarReview($("pvVideo"));
+    $("radarBootMessage").hidden=true;
+    radarReview.load({index:seg,name:seg,videoUrl});
+  }catch(e){radarModule=null;$("radarBootMessage").textContent='레이더 화면을 열지 못했습니다. 실행 창을 닫고 프로그램을 다시 실행해 주세요.';$("pvVideo").controls=true;}
+}
+$("player").addEventListener("close", () => { previewGeneration++;radarReview?.cancel();$("pvVideo").pause(); $("pvVideo").removeAttribute('src');$("pvVideo").load(); });
 
 /* ── 다운로드 ── */
 const selected = () => {
@@ -398,25 +414,49 @@ async function runDownload(queue) {
         (a, b) => Number(a.split("--").pop()) - Number(b.split("--").pop()));
       const result=await post("/api/download", { route: r, segments: segs, kinds: k, ...recordingBounds(r,segs) });
       if(result.out){$("jobInfo").title=result.out;paths.push(result.out);}
-      completed.push(await waitJob());
+      completed.push(await waitJob(result.id));
     }
   } catch (e) { failure=e.message;$("jobInfo").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
   state.busy=false; $("btnCancel").disabled=true; refreshFooter();
-  const failed=completed.reduce((n,s)=>n+(s.log||[]).filter(x=>!['ok','skip','cancel'].includes(x.status)).length,0);
-  const unverified=completed.some(s=>s.done>=500 && (s.log||[]).length<s.done);
+  showCompletion(completed,paths,failure);
+};
+let lastCompletion=null;
+function showCompletion(completed,paths=[],failure=null){
+  failure=failure||completed.find(s=>s.error)?.error;
+  const cancelled=state.cancelled||completed.some(s=>s.cancel);
+  const failed=completed.reduce((n,s)=>n+(s.failed??(s.log||[]).filter(x=>!['ok','skip','cancel'].includes(x.status)).length),0);
+  const unverified=completed.some(s=>s.failed==null && s.done>=500 && (s.log||[]).length<s.done);
   const incomplete=completed.some(s=>s.done<s.total);
   const done=completed.reduce((n,s)=>n+s.done,0);
-  $("completionTitle").textContent=failure?'다운로드 오류':state.cancelled?'다운로드 중단':failed||incomplete?'일부 파일을 받지 못했습니다':unverified?'다운로드 작업 종료':'다운로드 완료';
-  $("completionMessage").textContent=failure || (state.cancelled?'다운로드를 중단했습니다. 완료된 파일은 저장되어 있습니다.':failed?`${done}개 파일 처리 · 누락/실패 ${failed}개${unverified?' 이상':''}`:incomplete?'일부 파일 처리가 완료되지 않았습니다.':unverified?`${done}개 파일 처리. 최근 500개 파일의 결과만 확인할 수 있습니다.`:`${done}개 파일 처리가 완료되었습니다. 기존 파일은 그대로 유지됩니다.`);
-  $("completionPaths").replaceChildren(...[...new Set(paths.concat(completed.map(s=>s.out).filter(Boolean)))].map(path=>{const el=document.createElement('div');el.textContent=path;return el;}));
-  $("completion").showModal();
-};
+  $("completionTitle").textContent=failure?'다운로드 오류':cancelled?'다운로드 중단':failed||incomplete?'일부 파일을 받지 못했습니다':unverified?'다운로드 작업 종료':'다운로드 완료';
+  $("completionMessage").textContent=failure || (cancelled?'다운로드를 중단했습니다. 완료된 파일은 저장되어 있습니다.':failed?`${done}개 파일 처리 · 누락/실패 ${failed}개${unverified?' 이상':''}`:incomplete?'일부 파일 처리가 완료되지 않았습니다.':unverified?`${done}개 파일 처리. 최근 500개 파일의 결과만 확인할 수 있습니다.`:`${done}개 파일 처리가 완료되었습니다. 저장 폴더에서 확인하세요.`);
+  $("completionPaths").replaceChildren(...[...new Set(paths.concat(completed.map(s=>s.out).filter(Boolean)))].map(path=>{
+    const el=document.createElement('div'),label=document.createElement('div'),button=document.createElement('button'),status=document.createElement('span');
+    label.textContent=path;button.textContent='저장 폴더 열기';button.className='pri';button.style.margin='10px 0 14px';status.setAttribute('role','status');
+    button.onclick=async()=>{button.disabled=true;status.textContent='';try{await post('/api/open-download-folder',{path});}catch(e){status.textContent=e.message.includes('404')||e.message==='not found'?'실행 창을 닫고 LogDownloader.bat를 다시 실행해 주세요.':e.message;}finally{button.disabled=false;}};
+    el.append(label,button,status);return el;
+  }));
+  lastCompletion={completed,paths,failure};$("lastDownload").hidden=false;
+  if(!$("completion").open)$("completion").showModal();
+}
+$("lastDownload").onclick=()=>{if(lastCompletion)showCompletion(lastCompletion.completed,lastCompletion.paths,lastCompletion.failure);};
+$("completion").addEventListener('close',()=>{const s=lastCompletion?.completed.at(-1);if(s)try{localStorage.setItem('lastAcknowledgedDownload',String(s.id||s.started));}catch{}});
+async function restoreDownload(){
+  try{
+    let s=await j('/api/job');if(!s.total)return;
+    if(s.active){state.busy=true;refreshFooter();try{s=await waitJob(s.id);}finally{state.busy=false;refreshFooter();}}
+    lastCompletion={completed:[s],paths:[],failure:null};$("lastDownload").hidden=false;
+    let acknowledged='';try{acknowledged=localStorage.getItem('lastAcknowledgedDownload');}catch{}
+    if(acknowledged!==String(s.id||s.started))showCompletion([s]);
+  }catch(e){$("jobInfo").textContent='다운로드 결과 확인 실패: '+e.message;}
+}
 $("btnCancel").onclick = async () => {state.cancelled=true; try {await post("/api/cancel");} catch(e){$("jobInfo").textContent=e.message;} };
 
-function waitJob() {
+function waitJob(expectedId) {
   return new Promise((res,reject) => {
     const tick = async () => {
       let s; try { s = await j("/api/job"); } catch(e) { return reject(e); }
+      if(expectedId && s.id!==expectedId)return reject(new Error('다운로드 작업이 변경되었습니다. 저장 폴더에서 결과를 확인해 주세요.'));
       const percent=s.total ? Math.round(s.done / s.total * 100) : 0;
       $("prog").style.width = percent + "%";
       $("prog").parentElement.setAttribute("aria-valuenow", String(percent));
@@ -431,7 +471,7 @@ function waitJob() {
   });
 }
 
-loadConfig().then(()=>{refreshFooter();if($("ip").value.trim()) $("btnLoad").click();}).catch(e=>{$("status").textContent=e.message;});
+loadConfig().then(()=>{refreshFooter();restoreDownload();if($("ip").value.trim()) $("btnLoad").click();}).catch(e=>{$("status").textContent=e.message;});
 </script>
 </body>
 </html>

@@ -6,3 +6,7 @@ __pycache__/
 *.part
 *.zst
 *.ts
+
+app/.last-download.json*
+radar-*-test.json
+

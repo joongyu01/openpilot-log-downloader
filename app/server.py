@@ -36,7 +36,9 @@ import time
 import urllib.error
 import urllib.request
 import webbrowser
-from urllib.parse import unquote
+import uuid
+from urllib.parse import unquote, parse_qs
+import radar_review
 from recording_time import clock_samples, recover_times
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -50,7 +52,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RAW = os.path.normpath(os.path.join(HERE, "..",
-    "downloads" if os.path.isdir(os.path.join(HERE, "resources")) else "raw"))
+    "downloads" if os.path.basename(HERE) == "app" and os.path.isdir(os.path.join(HERE, "resources")) else "raw"))
 SETTINGS = os.path.join(HERE, "settings.json")
 try:
     with open(SETTINGS, encoding="utf-8") as settings_file:
@@ -66,6 +68,16 @@ JOB = {"active": False, "cancel": False, "done": 0, "total": 0, "bytes": 0,
        "current": "", "log": [], "out": "", "started": 0}
 JOB_LOCK = threading.Lock()
 TIME_CACHE = {}
+OPENABLE_FOLDERS = set()
+LAST_JOB = os.path.join(HERE, ".last-download.json")
+try:
+    with open(LAST_JOB, encoding="utf-8") as f:
+        previous = json.load(f)
+    if not previous.get("active") and previous.get("out"):
+        JOB.update(previous)
+        OPENABLE_FOLDERS.add(os.path.realpath(previous["out"]))
+except (OSError, ValueError, TypeError):
+    pass
 
 
 # ─────────────────────────────────────────────── 기기 탐색
@@ -141,6 +153,8 @@ def download_one(segment, kind, out_dir):
             if JOB["cancel"]:
                 os.remove(tmp)
                 return ("cancel", 0)
+            if total and got != total:
+                return (f"실패: 파일 크기 불일치 ({got}/{total})", 0)
             os.replace(tmp, dest)
             return ("ok", got)
     except urllib.error.HTTPError as e:
@@ -166,26 +180,36 @@ def recording_folder(route, start_epoch, end_epoch, segment_count):
 
 
 def run_job(route, segments, kinds, out):
-    os.makedirs(out, exist_ok=True)
-    with JOB_LOCK:
-        JOB.update(active=True, cancel=False, done=0, bytes=0, log=[], out=out,
-                   total=len(segments) * len(kinds), started=time.time(), current="")
-    for seg in segments:
-        if JOB["cancel"]:
-            break
-        for kind in kinds:
+    try:
+        os.makedirs(out, exist_ok=True)
+        for seg in segments:
             if JOB["cancel"]:
                 break
-            with JOB_LOCK:
-                JOB["current"] = f"{seg} · {kind}"
-            status, size = download_one(seg, kind, out)
-            with JOB_LOCK:
-                JOB["done"] += 1
-                JOB["log"].append({"seg": seg, "kind": kind, "status": status, "size": size})
-                JOB["log"] = JOB["log"][-500:]
-    with JOB_LOCK:
-        JOB["active"] = False
-        JOB["current"] = "중단됨" if JOB["cancel"] else "완료"
+            for kind in kinds:
+                if JOB["cancel"]:
+                    break
+                with JOB_LOCK:
+                    JOB["current"] = f"{seg} · {kind}"
+                status, size = download_one(seg, kind, out)
+                with JOB_LOCK:
+                    JOB["done"] += 1
+                    key = {"ok": "ok", "skip": "skipped", "cancel": "cancelledFiles"}.get(status, "failed")
+                    JOB[key] = JOB.get(key, 0) + 1
+                    JOB["log"].append({"seg": seg, "kind": kind, "status": status, "size": size})
+                    JOB["log"] = JOB["log"][-500:]
+    except Exception as e:
+        with JOB_LOCK:
+            JOB["error"] = str(e)
+    finally:
+        with JOB_LOCK:
+            JOB["active"] = False
+            JOB["current"] = "중단됨" if JOB["cancel"] else "오류" if JOB.get("error") or JOB.get("failed") else "완료"
+            try:
+                with open(LAST_JOB + ".tmp", "w", encoding="utf-8") as f:
+                    json.dump(JOB, f, ensure_ascii=False)
+                os.replace(LAST_JOB + ".tmp", LAST_JOB)
+            except OSError:
+                pass
 
 
 # ─────────────────────────────────────────────── HTTP
@@ -204,6 +228,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         try:
             self.wfile.write(body)
@@ -212,7 +237,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = self.path.split("?")[0]
-        if p in ("/", "/index.html"):
+        if p == "/radar_view.js":
+            with open(os.path.join(HERE, "radar_view.js"), "rb") as f:
+                self._send(200, f.read(), "text/javascript; charset=utf-8")
+        elif p.startswith("/api/radar-review/"):
+            query = parse_qs(self.path.partition("?")[2])
+            code, payload = radar_review.response(STATE["ip"], unquote(p.removeprefix("/api/radar-review/")),
+                query.get("sensor", ["auto"])[0], query.get("radar_track_flip", ["recorded"])[0],
+                retry=query.get("retry", ["0"])[0] == "1")
+            self._send(code, payload)
+        elif p in ("/", "/index.html"):
             f = os.path.join(HERE, "index.html")
             try:
                 with open(f, "rb") as fh:
@@ -221,6 +255,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(500, "index.html 이 없다", "text/plain; charset=utf-8")
         elif p == "/api/config":
             self._send(200, {"ip": STATE["ip"], "raw": RAW,
+                             "openDownloadFolder": True, "jobResults": True,
                              "folderNaming": "YYYYMMDD_HHmm_HHmm(count)", "timeRecovery": True})
         elif p.startswith("/api/route-times/"):
             route = unquote(p.removeprefix("/api/route-times/"))
@@ -284,7 +319,19 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
         p = self.path.split("?")[0]
-        if p in ("/api/set-download-directory", "/api/choose-download-directory"):
+        if p == "/api/open-download-folder":
+            origin = self.headers.get("Origin")
+            if origin and origin not in (f"http://{self.headers.get('Host')}",):
+                return self._send(403, {"error": "이 프로그램 화면에서 요청해 주세요"})
+            path = os.path.realpath(str(body.get("path") or ""))
+            if path not in OPENABLE_FOLDERS or not os.path.isdir(path):
+                return self._send(400, {"error": "저장한 폴더를 찾을 수 없습니다"})
+            try:
+                os.startfile(path)
+                self._send(200, {"ok": True})
+            except Exception as e:
+                self._send(500, {"error": f"탐색기를 열지 못했습니다: {e}"})
+        elif p in ("/api/set-download-directory", "/api/choose-download-directory"):
             if JOB["active"]:
                 return self._send(409, {"error": "다운로드가 끝난 후 저장 위치를 바꿔 주세요"})
             try:
@@ -331,8 +378,16 @@ class Handler(BaseHTTPRequestHandler):
             segs = list(dict.fromkeys(segs))
             out = recording_folder(route, body.get("recordingStartEpoch"),
                                    body.get("recordingEndEpoch"), len(segs))
+            with JOB_LOCK:
+                if JOB["active"]:
+                    return self._send(409, {"error": "이미 받는 중입니다"})
+                job_id = uuid.uuid4().hex
+                JOB.update(id=job_id, active=True, cancel=False, done=0, bytes=0, log=[],
+                           out=out, total=len(segs)*len(kinds), started=time.time(), current="준비 중",
+                           ok=0, skipped=0, failed=0, cancelledFiles=0, error=None)
+                OPENABLE_FOLDERS.add(os.path.realpath(out))
             threading.Thread(target=run_job, args=(route, segs, kinds, out), daemon=True).start()
-            self._send(200, {"ok": True, "total": len(segs) * len(kinds), "out": out})
+            self._send(200, {"ok": True, "id": job_id, "total": len(segs) * len(kinds), "out": out})
         elif p == "/api/cancel":
             JOB["cancel"] = True
             self._send(200, {"ok": True})
